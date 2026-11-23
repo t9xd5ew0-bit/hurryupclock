@@ -1,0 +1,1628 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#09090b" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="description" content="High-contrast tableside Pool & Cue Sports Shot Clock with audible countdown, extensions, and offline PWA support." />
+  <title>SHOT CLOCK // Cue Sports Timer</title>
+
+  <!-- Dynamic PWA Manifest & Apple Touch Icon injected via script for single-file & GitHub Pages compatibility -->
+  <link id="pwa-manifest" rel="manifest" href="" />
+  <link id="apple-icon" rel="apple-touch-icon" href="" />
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+          },
+          colors: {
+            slatebase: '#09090b',
+            slatecard: '#121215',
+            slateborder: '#27272a',
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Google Fonts: Inter & JetBrains Mono for ultra-crisp tabular digits -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    input, textarea, pre, code {
+      user-select: text;
+    }
+    body {
+      background-color: #09090b;
+      color: #fafafa;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      overscroll-behavior: none;
+    }
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+    /* Custom subtle range input styling */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: #27272a;
+      height: 6px;
+      border-radius: 9999px;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #fafafa;
+      cursor: pointer;
+      border: 2px solid #09090b;
+    }
+    /* Urgency pulse animation */
+    @keyframes pulse-border {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.35);
+      }
+      50% {
+        box-shadow: 0 0 0 10px rgba(245, 158, 11, 0);
+      }
+    }
+    @keyframes foul-flash {
+      0%, 100% {
+        background-color: rgba(239, 68, 68, 0.16);
+        border-color: #ef4444;
+      }
+      50% {
+        background-color: rgba(239, 68, 68, 0.30);
+        border-color: #fca5a5;
+      }
+    }
+    .state-warning {
+      animation: pulse-border 1s infinite;
+    }
+    .state-foul {
+      animation: foul-flash 0.8s infinite;
+    }
+    /* Hide scrollbars cleanly where appropriate */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="min-h-screen min-h-[100dvh] flex flex-col justify-between bg-zinc-950 text-zinc-50 overflow-x-hidden">
+
+  <!-- TOP HEADER BAR -->
+  <header class="w-full max-w-2xl mx-auto px-4 pt-3 pb-2 flex items-center justify-between gap-2">
+    <div class="flex items-center gap-2.5">
+      <div class="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center shadow-inner">
+        <!-- Cue ball + 8-ball minimal emblem -->
+        <svg class="w-4 h-4 text-zinc-100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <circle cx="12" cy="12" r="9" />
+          <circle cx="12" cy="12" r="3.2" fill="currentColor" />
+        </svg>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="text-sm font-extrabold tracking-wider uppercase text-zinc-100">Shot Clock</h1>
+          <span id="wake-badge" title="Screen Wake Lock Status" class="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider bg-zinc-900 text-zinc-400 border border-zinc-800">
+            <span id="wake-dot" class="w-1.5 h-1.5 rounded-full bg-zinc-600"></span>
+            <span id="wake-text">Awake: Ready</span>
+          </span>
+        </div>
+        <p id="active-rule-label" class="text-[11px] text-zinc-400 font-medium">WPA 30s · +30s Ext · 5s Warn</p>
+      </div>
+    </div>
+
+    <!-- Right Action Icons: Mute, PWA Export, Settings -->
+    <div class="flex items-center gap-1.5">
+      <button id="btn-mute" type="button" aria-label="Toggle Sound" title="Mute / Unmute Audio"
+        class="p-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 active:scale-95 border border-zinc-800 text-zinc-200 transition">
+        <!-- Sound On SVG -->
+        <svg id="icon-sound-on" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+        </svg>
+        <!-- Sound Off SVG -->
+        <svg id="icon-sound-off" class="w-5 h-5 hidden text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <line x1="23" y1="9" x2="17" y2="15"></line>
+          <line x1="17" y1="9" x2="23" y2="15"></line>
+        </svg>
+      </button>
+
+      <button id="btn-pwa-modal" type="button" aria-label="GitHub Pages PWA Setup" title="Deploy / Install PWA"
+        class="p-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 active:scale-95 border border-zinc-800 text-zinc-300 transition flex items-center gap-1.5">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        <span class="hidden sm:inline text-xs font-semibold">PWA</span>
+      </button>
+
+      <button id="btn-settings" type="button" aria-label="Timer Settings" title="Settings"
+        class="p-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 active:scale-95 border border-zinc-800 text-zinc-200 transition flex items-center gap-1.5">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+        <span class="text-xs font-semibold">Rules</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- QUICK PRESET PILLS -->
+  <nav aria-label="Rule Presets" class="w-full max-w-2xl mx-auto px-4 py-1">
+    <div id="preset-bar" class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+      <button type="button" data-preset="wpa30" class="preset-pill shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold border transition">
+        WPA 30s (+30s)
+      </button>
+      <button type="button" data-preset="matchroom" class="preset-pill shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold border transition">
+        Matchroom 30s (60s Break)
+      </button>
+      <button type="button" data-preset="standard45" class="preset-pill shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold border transition">
+        45s (+45s)
+      </button>
+      <button type="button" data-preset="league60" class="preset-pill shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold border transition">
+        League 60s (+30s)
+      </button>
+      <button type="button" data-preset="custom" class="preset-pill shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold border transition">
+        Custom
+      </button>
+    </div>
+  </nav>
+
+  <!-- MAIN TABLESIDE TIMER DISPLAY & TELEMETRY -->
+  <main class="w-full max-w-2xl mx-auto px-4 flex-1 flex flex-col justify-center gap-3 my-1">
+
+    <!-- RACK / SHOT / EXTENSION TELEMETRY STRIP -->
+    <div class="grid grid-cols-3 gap-2">
+      <!-- Rack Counter -->
+      <div class="bg-zinc-900/90 border border-zinc-800/90 rounded-2xl px-3 py-2.5 flex items-center justify-between">
+        <div>
+          <span class="block text-[10px] font-bold uppercase tracking-widest text-zinc-500">Rack</span>
+          <span id="rack-count" class="font-mono text-xl sm:text-2xl font-extrabold text-zinc-100 tabular-nums">1</span>
+        </div>
+        <button id="btn-new-rack" type="button" title="Start New Rack (Resets Shot # to 1 & Extensions)"
+          class="px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-[11px] font-bold uppercase tracking-wider text-zinc-200 border border-zinc-700 transition">
+          New
+        </button>
+      </div>
+
+      <!-- Shot / Lap Counter -->
+      <div class="bg-zinc-900/90 border border-zinc-800/90 rounded-2xl px-3 py-2.5 flex items-center justify-between">
+        <div>
+          <span class="block text-[10px] font-bold uppercase tracking-widest text-zinc-500">Shot / Lap</span>
+          <div class="flex items-baseline gap-1.5">
+            <span id="shot-count" class="font-mono text-xl sm:text-2xl font-extrabold text-zinc-100 tabular-nums">1</span>
+            <span id="break-tag" class="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300">Break</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Extensions Remaining -->
+      <div class="bg-zinc-900/90 border border-zinc-800/90 rounded-2xl px-3 py-2.5 flex items-center justify-between">
+        <div>
+          <span class="block text-[10px] font-bold uppercase tracking-widest text-zinc-500">Extensions</span>
+          <div class="flex items-center gap-1.5 mt-0.5">
+            <span id="ext-count" class="font-mono text-xl sm:text-2xl font-extrabold text-zinc-100 tabular-nums">1</span>
+            <span id="ext-total-label" class="text-xs font-mono text-zinc-500">/ 1</span>
+          </div>
+        </div>
+        <div id="ext-pips" class="flex flex-col gap-1"></div>
+      </div>
+    </div>
+
+    <!-- CENTRAL INTERACTIVE CLOCK CARD (Tap anywhere on card to Start / Pause) -->
+    <div id="clock-surface" role="button" tabindex="0" aria-label="Tap to Start or Pause Shot Clock"
+      class="relative w-full rounded-3xl bg-zinc-900 border-2 border-zinc-800 p-5 sm:p-8 flex flex-col items-center justify-center cursor-pointer transition-colors duration-150 shadow-2xl min-h-[240px] sm:min-h-[300px]">
+
+      <!-- Top Status Pill inside Clock -->
+      <div class="w-full flex items-center justify-between mb-2">
+        <span id="status-badge" class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest bg-zinc-800 text-zinc-300 border border-zinc-700">
+          <span id="status-dot" class="w-2 h-2 rounded-full bg-zinc-400"></span>
+          <span id="status-text">READY</span>
+        </span>
+
+        <span id="ext-used-badge" class="hidden px-2.5 py-1 rounded-full text-[11px] font-mono font-bold uppercase tracking-wider bg-amber-500/15 text-amber-300 border border-amber-500/40">
+          +EXT ACTIVE
+        </span>
+      </div>
+
+      <!-- MASSIVE TABULAR COUNTDOWN -->
+      <div class="my-auto py-2 flex flex-col items-center justify-center w-full">
+        <div id="time-display" class="font-mono font-extrabold tracking-tighter text-zinc-50 tabular-nums leading-none select-none text-[5.25rem] sm:text-[7.5rem] md:text-[8.5rem]">
+          30.0
+        </div>
+        <div id="foul-banner" class="hidden mt-2 px-4 py-1 rounded-lg bg-red-600 text-white font-extrabold text-sm sm:text-base tracking-widest uppercase">
+          TIME EXPIRED · FOUL
+        </div>
+      </div>
+
+      <!-- Linear Progress Bar -->
+      <div class="w-full mt-4">
+        <div class="w-full h-2.5 bg-zinc-950 rounded-full overflow-hidden border border-zinc-800/80">
+          <div id="progress-bar" class="h-full bg-zinc-100 transition-all duration-75 ease-linear rounded-full" style="width: 100%;"></div>
+        </div>
+        <div class="flex justify-between items-center mt-2 text-[11px] font-mono text-zinc-500">
+          <span>TAP CLOCK TO START / PAUSE</span>
+          <span id="target-time-label">TARGET: 30s</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- OVERSIZED TACTILE TABLESIDE CONTROLS -->
+    <div class="grid grid-cols-12 gap-2.5 sm:gap-3 pt-1 pb-3">
+      <!-- START / PAUSE BUTTON -->
+      <button id="btn-start-pause" type="button"
+        class="col-span-5 py-4 sm:py-5 px-3 rounded-2xl font-extrabold text-base sm:text-lg tracking-wider uppercase flex flex-col items-center justify-center gap-1 bg-zinc-100 text-zinc-950 hover:bg-white active:scale-[0.98] transition shadow-lg border border-white">
+        <span id="start-pause-label">START</span>
+        <span class="text-[10px] font-mono font-semibold opacity-70 tracking-normal">SPACEBAR / TAP</span>
+      </button>
+
+      <!-- EXTENSION (+EXT) BUTTON -->
+      <button id="btn-extension" type="button"
+        class="col-span-3 py-4 sm:py-5 px-2 rounded-2xl font-extrabold text-base sm:text-lg tracking-wide uppercase flex flex-col items-center justify-center gap-1 bg-zinc-900 text-amber-400 hover:bg-zinc-800 active:scale-[0.98] transition border-2 border-zinc-800 disabled:opacity-35 disabled:pointer-events-none">
+        <span id="ext-btn-label">+30s</span>
+        <span class="text-[10px] font-mono font-semibold text-zinc-400 tracking-normal">EXT (E)</span>
+      </button>
+
+      <!-- NEXT SHOT / LAP BUTTON -->
+      <button id="btn-next-shot" type="button"
+        class="col-span-4 py-4 sm:py-5 px-3 rounded-2xl font-extrabold text-base sm:text-lg tracking-wider uppercase flex flex-col items-center justify-center gap-1 bg-zinc-800 text-zinc-50 hover:bg-zinc-700 active:scale-[0.98] transition border-2 border-zinc-700 shadow-lg">
+        <span>NEXT SHOT</span>
+        <span class="text-[10px] font-mono font-semibold text-zinc-400 tracking-normal">LAP / RESET (N)</span>
+      </button>
+    </div>
+
+  </main>
+
+  <!-- TOAST NOTIFICATION (Non-blocking feedback, zero alert()) -->
+  <div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 pointer-events-none opacity-0 transition-opacity duration-200">
+    <div id="toast-msg" class="px-4 py-2 rounded-full bg-zinc-100 text-zinc-950 text-xs font-bold tracking-wide shadow-xl border border-zinc-300">
+      Action Complete
+    </div>
+  </div>
+
+  <!-- SETTINGS DRAWER / MODAL -->
+  <div id="settings-modal" class="fixed inset-0 z-40 hidden bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-zinc-900 border border-zinc-800 w-full max-w-lg rounded-t-3xl sm:rounded-3xl max-h-[90dvh] flex flex-col shadow-2xl overflow-hidden">
+      <!-- Modal Header -->
+      <div class="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-extrabold tracking-wide uppercase text-zinc-100">Timer & Audio Rules</h2>
+          <p class="text-xs text-zinc-400">All settings save automatically to your device</p>
+        </div>
+        <button id="btn-close-settings" type="button" class="p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Modal Scrollable Body -->
+      <div class="p-5 overflow-y-auto space-y-5 text-sm">
+
+        <!-- Base Shot Time -->
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <label for="set-base-time" class="font-bold text-zinc-100 block">Base Shot Time (sec)</label>
+            <span class="text-xs text-zinc-400">Standard clock per shot (10s – 180s)</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button type="button" data-step="set-base-time" data-delta="-5" class="step-btn w-9 h-9 rounded-xl bg-zinc-800 hover:bg-zinc-700 font-mono font-bold text-zinc-200">-5</button>
+            <input id="set-base-time" type="number" min="5" max="300" class="w-16 h-9 rounded-xl bg-zinc-950 border border-zinc-700 text-center font-mono font-bold text-zinc-100" />
+            <button type="button" data-step="set-base-time" data-delta="5" class="step-btn w-9 h-9 rounded-xl bg-zinc-800 hover:bg-zinc-700 font-mono font-bold text-zinc-200">+5</button>
+          </div>
+        </div>
+
+        <!-- Break Shot Time -->
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <label for="set-break-time" class="font-bold text-zinc-100 block">Shot #1 / Break Time (sec)</label>
+            <span class="text-xs text-zinc-400">First shot of rack (e.g., 60s Matchroom)</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button type="button" data-step="set-break-time" data-delta="-5" class="step-btn w-9 h-9 rounded-xl bg-zinc-800 hover:bg-zinc-700 font-mono font-bold text-zinc-200">-5</button>
+            <input id="set-break-time" type="number" min="5" max="300" class="w-16 h-9 rounded-xl bg-zinc-950 border border-zinc-700 text-center font-mono font-bold text-zinc-100" />
+            <button type="button" data-step="set-break-time" data-delta="5" class="step-btn w-9 h-9 rounded-xl bg-zinc-800 hover:bg-zinc-700 font-mono font-bold text-zinc-200">+5</button>
+          </div>
+        </div>
+
+        <!-- Extension Time -->
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <label for="set-ext-time" class="font-bold text-zinc-100 block">Extension Duration (sec)</label>
+            <span class="text-xs text-zinc-400">Added when +EXT is pressed</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button type="button" data-step="set-ext-time" data-delta="-5" class="step-btn w-9 h-9 rounded-xl bg-zinc-800 hover:bg-zinc-700 font-mono font-bold text-zinc-200">-5</button>
+            <input id="set-ext-time" type="number" min="5" max="300" class="w-16 h-9 rounded-xl bg-zinc-950 border border-zinc-700 text-center font-mono font-bold text-zinc-100" />
+            <button type="button" data-step="set-ext-time" data-delta="5" class="step-btn w-9 h-9 rounded-xl bg-zinc-800 hover:bg-zinc-700 font-mono font-bold text-zinc-200">+5</button>
+          </div>
+        </div>
+
+        <!-- Extensions Per Rack -->
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <label for="set-ext-count" class="font-bold text-zinc-100 block">Extensions per Rack</label>
+            <span class="text-xs text-zinc-400">0 = none, 99 = unlimited</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button type="button" data-step="set-ext-count" data-delta="-1" class="step-btn w-9 h-9 rounded-xl bg-zinc-800 hover:bg-zinc-700 font-mono font-bold text-zinc-200">-1</button>
+            <input id="set-ext-count" type="number" min="0" max="99" class="w-16 h-9 rounded-xl bg-zinc-950 border border-zinc-700 text-center font-mono font-bold text-zinc-100" />
+            <button type="button" data-step="set-ext-count" data-delta="1" class="step-btn w-9 h-9 rounded-xl bg-zinc-800 hover:bg-zinc-700 font-mono font-bold text-zinc-200">+1</button>
+          </div>
+        </div>
+
+        <hr class="border-zinc-800" />
+
+        <!-- Audible Warning Last N Seconds -->
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <label for="set-warn-sec" class="font-bold text-zinc-100 block">Warning Beep (Last N sec)</label>
+            <span class="text-xs text-zinc-400">Audible beep each second in final N sec (0 = off)</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button type="button" data-step="set-warn-sec" data-delta="-1" class="step-btn w-9 h-9 rounded-xl bg-zinc-800 hover:bg-zinc-700 font-mono font-bold text-zinc-200">-1</button>
+            <input id="set-warn-sec" type="number" min="0" max="60" class="w-16 h-9 rounded-xl bg-zinc-950 border border-zinc-700 text-center font-mono font-bold text-zinc-100" />
+            <button type="button" data-step="set-warn-sec" data-delta="1" class="step-btn w-9 h-9 rounded-xl bg-zinc-800 hover:bg-zinc-700 font-mono font-bold text-zinc-200">+1</button>
+          </div>
+        </div>
+
+        <!-- Beep Pitch & Volume -->
+        <div class="space-y-3 bg-zinc-950/80 p-3.5 rounded-2xl border border-zinc-800/80">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-zinc-200 text-xs uppercase tracking-wider">Official Clock Audio</span>
+            <button id="btn-test-beep" type="button" class="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-xs font-bold text-zinc-100 border border-zinc-700">
+              Test Countdown
+            </button>
+          </div>
+
+          <div class="space-y-1">
+            <label for="set-sound-profile" class="block text-xs text-zinc-400">Official Sound Profile</label>
+            <select id="set-sound-profile" class="w-full h-9 px-3 rounded-xl bg-zinc-900 border border-zinc-700 text-xs font-semibold text-zinc-100 focus:outline-none">
+              <option value="protour">Pro Tour Console (WPA / Predator Crisp Beep + Horn)</option>
+              <option value="arenahorn">Arena Horn (Broadcast Horn Ticks + Horn)</option>
+              <option value="matchroom">Matchroom Style (Silent Ticks · 0.0s Horn Only)</option>
+            </select>
+          </div>
+
+          <div class="space-y-1">
+            <div class="flex justify-between text-xs text-zinc-400">
+              <label for="set-volume">Volume</label>
+              <span id="val-volume" class="font-mono text-zinc-200">85%</span>
+            </div>
+            <input id="set-volume" type="range" min="0" max="100" step="5" value="85" class="w-full" />
+          </div>
+
+          <div class="space-y-1">
+            <div class="flex justify-between text-xs text-zinc-400">
+              <label for="set-pitch">Warning Pitch (Hz)</label>
+              <span id="val-pitch" class="font-mono text-zinc-200">1050 Hz</span>
+            </div>
+            <input id="set-pitch" type="range" min="200" max="2000" step="10" value="1050" class="w-full" />
+          </div>
+
+          <div class="space-y-1">
+            <div class="flex justify-between text-xs text-zinc-400">
+              <label for="set-beep-duration">Warning Beep Length (ms)</label>
+              <span id="val-beep-duration" class="font-mono text-zinc-200">120 ms</span>
+            </div>
+            <input id="set-beep-duration" type="range" min="50" max="600" step="10" value="120" class="w-full" />
+          </div>
+        </div>
+
+        <!-- Behavior Toggles -->
+        <div class="space-y-3">
+          <label class="flex items-center justify-between cursor-pointer">
+            <div>
+              <span class="font-bold text-zinc-100 block">Auto-Start on Next Shot</span>
+              <span class="text-xs text-zinc-400">Immediately begin countdown when tapping Next Shot</span>
+            </div>
+            <input id="set-auto-start" type="checkbox" class="w-5 h-5 rounded accent-zinc-100" />
+          </label>
+
+          <label class="flex items-center justify-between cursor-pointer">
+            <div>
+              <span class="font-bold text-zinc-100 block">Show Tenths of a Second (0.1s)</span>
+              <span class="text-xs text-zinc-400">Display high-precision decimal countdown</span>
+            </div>
+            <input id="set-tenths" type="checkbox" class="w-5 h-5 rounded accent-zinc-100" />
+          </label>
+
+          <label class="flex items-center justify-between cursor-pointer">
+            <div>
+              <span class="font-bold text-zinc-100 block">Double-Beep Final 3 Seconds</span>
+              <span class="text-xs text-zinc-400">Higher urgency pitch on 3, 2, 1 seconds left</span>
+            </div>
+            <input id="set-final3" type="checkbox" class="w-5 h-5 rounded accent-zinc-100" />
+          </label>
+
+          <label class="flex items-center justify-between cursor-pointer">
+            <div>
+              <span class="font-bold text-zinc-100 block">Haptic Vibration (Mobile)</span>
+              <span class="text-xs text-zinc-400">Vibrate on warning ticks and time expired</span>
+            </div>
+            <input id="set-vibrate" type="checkbox" class="w-5 h-5 rounded accent-zinc-100" />
+          </label>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-5 py-3.5 border-t border-zinc-800 bg-zinc-950/60 flex items-center justify-between gap-3">
+        <button id="btn-reset-defaults" type="button" class="px-3.5 py-2 rounded-xl text-xs font-bold text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition">
+          Reset Defaults
+        </button>
+        <button id="btn-save-settings" type="button" class="px-5 py-2.5 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-extrabold uppercase tracking-wider transition">
+          Apply & Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GITHUB PAGES PWA DEPLOYMENT BUNDLE MODAL -->
+  <div id="pwa-modal" class="fixed inset-0 z-40 hidden bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-zinc-900 border border-zinc-800 w-full max-w-xl rounded-t-3xl sm:rounded-3xl max-h-[90dvh] flex flex-col shadow-2xl overflow-hidden">
+      <div class="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-extrabold tracking-wide uppercase text-zinc-100">GitHub Pages PWA Setup</h2>
+          <p class="text-xs text-zinc-400">Host as an offline installable app on GitHub Pages</p>
+        </div>
+        <button id="btn-close-pwa" type="button" class="p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="p-5 overflow-y-auto space-y-4 text-xs text-zinc-300">
+        <!-- Install Prompt Banner if browser supports beforeinstallprompt -->
+        <div id="install-prompt-box" class="hidden p-3.5 rounded-2xl bg-zinc-100 text-zinc-950 flex items-center justify-between gap-3">
+          <div>
+            <p class="font-extrabold text-sm">Install App Now</p>
+            <p class="text-xs opacity-80">Add Shot Clock directly to your home screen.</p>
+          </div>
+          <button id="btn-trigger-install" type="button" class="px-4 py-2 rounded-xl bg-zinc-950 text-white font-bold text-xs uppercase tracking-wider shrink-0">
+            Install
+          </button>
+        </div>
+
+        <div class="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800 space-y-2">
+          <p class="font-bold text-zinc-100 text-sm">How to deploy to GitHub Pages (30 seconds):</p>
+          <ol class="list-decimal list-inside space-y-1 text-zinc-400 leading-relaxed">
+            <li>Create a new GitHub repository (e.g., <code class="text-zinc-200">pool-shot-clock</code>).</li>
+            <li>Download or commit <code class="text-zinc-200">index.html</code>, <code class="text-zinc-200">manifest.json</code>, <code class="text-zinc-200">sw.js</code>, and <code class="text-zinc-200">icon.svg</code> to the root folder.</li>
+            <li>Open <strong class="text-zinc-200">Settings → Pages</strong> and set Source to <code class="text-zinc-200">main / (root)</code>.</li>
+            <li>Open your GitHub Pages URL on iOS Safari or Android Chrome and tap <strong class="text-zinc-200">Add to Home Screen</strong>.</li>
+          </ol>
+        </div>
+
+        <!-- 1-Click Download Bundle -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <button type="button" data-dl="index.html" class="dl-pwa-file p-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-center font-mono font-bold text-zinc-100 transition">
+            ↓ index.html
+          </button>
+          <button type="button" data-dl="manifest.json" class="dl-pwa-file p-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-center font-mono font-bold text-zinc-100 transition">
+            ↓ manifest.json
+          </button>
+          <button type="button" data-dl="sw.js" class="dl-pwa-file p-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-center font-mono font-bold text-zinc-100 transition">
+            ↓ sw.js
+          </button>
+          <button type="button" data-dl="icon.svg" class="dl-pwa-file p-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-center font-mono font-bold text-zinc-100 transition">
+            ↓ icon.svg
+          </button>
+        </div>
+
+        <!-- Copyable manifest.json -->
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="font-mono font-bold text-zinc-200">manifest.json</span>
+            <button type="button" data-copy="manifest" class="copy-pwa-btn px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-[11px] font-bold text-zinc-200">Copy</button>
+          </div>
+          <pre id="code-manifest" class="p-3 rounded-xl bg-zinc-950 border border-zinc-800 font-mono text-[11px] text-zinc-400 overflow-x-auto"></pre>
+        </div>
+
+        <!-- Copyable sw.js -->
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="font-mono font-bold text-zinc-200">sw.js (Offline Service Worker)</span>
+            <button type="button" data-copy="sw" class="copy-pwa-btn px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-[11px] font-bold text-zinc-200">Copy</button>
+          </div>
+          <pre id="code-sw" class="p-3 rounded-xl bg-zinc-950 border border-zinc-800 font-mono text-[11px] text-zinc-400 overflow-x-auto"></pre>
+        </div>
+      </div>
+
+      <div class="px-5 py-3.5 border-t border-zinc-800 bg-zinc-950/60 flex justify-end">
+        <button id="btn-close-pwa-footer" type="button" class="px-5 py-2 rounded-xl bg-zinc-100 text-zinc-950 text-xs font-extrabold uppercase tracking-wider">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * POOL SHOT CLOCK // CUE SPORTS TIMER
+     * Standalone, zero-dependency, offline-first PWA web application.
+     */
+
+    // =========================================================================
+    // 1. DEFAULT CONFIGURATION & PRESETS
+    // =========================================================================
+    const STORAGE_KEY = 'cue_shot_clock_settings_v1';
+
+    const PRESETS = {
+      wpa30: {
+        name: 'WPA 30s',
+        baseTime: 30,
+        breakTime: 30,
+        extTime: 30,
+        extPerRack: 1,
+        warnSec: 5,
+      },
+      matchroom: {
+        name: 'Matchroom 30s',
+        baseTime: 30,
+        breakTime: 60,
+        extTime: 30,
+        extPerRack: 1,
+        warnSec: 5,
+      },
+      standard45: {
+        name: '45s Standard',
+        baseTime: 45,
+        breakTime: 45,
+        extTime: 45,
+        extPerRack: 1,
+        warnSec: 10,
+      },
+      league60: {
+        name: 'League 60s',
+        baseTime: 60,
+        breakTime: 60,
+        extTime: 30,
+        extPerRack: 2,
+        warnSec: 10,
+      }
+    };
+
+    const DEFAULT_SETTINGS = {
+      preset: 'wpa30',
+      baseTime: 30,
+      breakTime: 30,
+      extTime: 30,
+      extPerRack: 1,
+      warnSec: 5,
+      soundProfile: 'protour',
+      volume: 85,
+      pitch: 1050,
+      beepDuration: 120,
+      muted: false,
+      autoStartNext: true,
+      showTenths: true,
+      doubleBeepFinal3: false,
+      vibrate: true
+    };
+
+    function loadSettings() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return { ...DEFAULT_SETTINGS };
+        return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+      } catch (e) {
+        return { ...DEFAULT_SETTINGS };
+      }
+    }
+
+    function saveSettings() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+      } catch (e) {
+        // Ignore storage quota errors in private mode
+      }
+    }
+
+    let settings = loadSettings();
+
+    // =========================================================================
+    // 2. WEB AUDIO API SYNTHESIZER (Zero external sound files, 100% offline)
+    // =========================================================================
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+      }
+
+      unlock() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) {
+            this.ctx = new AudioCtx();
+          }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume().catch(() => {});
+        }
+      }
+
+      // Official WPA / Predator Pro Billiard Series piezo console beep (clean, non-startling broadcast tone)
+      playProConsoleBeep(freq, durationMs, gainScale = 1.0, delayMs = 0) {
+        if (settings.muted || settings.volume <= 0) return;
+        this.unlock();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime + (delayMs / 1000);
+        const durSec = Math.max(0.04, durationMs / 1000);
+
+        const oscMain = this.ctx.createOscillator();
+        const oscHarmonic = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const harmGain = this.ctx.createGain();
+
+        oscMain.type = 'sine';
+        oscHarmonic.type = 'triangle';
+
+        oscMain.frequency.setValueAtTime(freq, now);
+        oscHarmonic.frequency.setValueAtTime(freq * 2, now); // Subtle octave overtone like hardware digital shot clocks
+
+        const masterVol = (settings.volume / 100) * 0.48 * gainScale;
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.linearRampToValueAtTime(Math.max(0.001, masterVol), now + 0.008);
+        gain.gain.setValueAtTime(Math.max(0.001, masterVol), now + Math.max(0.01, durSec - 0.018));
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + durSec);
+
+        harmGain.gain.setValueAtTime(0.14, now);
+
+        oscMain.connect(gain);
+        oscHarmonic.connect(harmGain);
+        harmGain.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        oscMain.start(now);
+        oscHarmonic.start(now);
+        oscMain.stop(now + durSec + 0.015);
+        oscHarmonic.stop(now + durSec + 0.015);
+      }
+
+      // Arena / Tournament expiration horn buzzer (used at 0.0s foul or in Arena Horn mode)
+      playArenaHorn(freq, durationMs, gainScale = 1.0, delayMs = 0) {
+        if (settings.muted || settings.volume <= 0) return;
+        this.unlock();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime + (delayMs / 1000);
+        const durSec = Math.max(0.06, durationMs / 1000);
+
+        const osc1 = this.ctx.createOscillator();
+        const osc2 = this.ctx.createOscillator();
+        const filter = this.ctx.createBiquadFilter();
+        const gain = this.ctx.createGain();
+
+        osc1.type = 'sawtooth';
+        osc2.type = 'sawtooth';
+        osc1.frequency.setValueAtTime(freq, now);
+        osc2.frequency.setValueAtTime(freq * 1.008, now);
+
+        filter.type = 'lowpass';
+        filter.Q.setValueAtTime(2.0, now);
+        filter.frequency.setValueAtTime(Math.min(2800, freq * 4.5), now);
+
+        const masterVol = (settings.volume / 100) * 0.42 * gainScale;
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.linearRampToValueAtTime(Math.max(0.001, masterVol), now + 0.015);
+        gain.gain.setValueAtTime(Math.max(0.001, masterVol * 0.9), now + Math.max(0.02, durSec - 0.03));
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + durSec);
+
+        osc1.connect(filter);
+        osc2.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc1.start(now);
+        osc2.start(now);
+        osc1.stop(now + durSec + 0.02);
+        osc2.stop(now + durSec + 0.02);
+      }
+
+      playTone(freq, durationMs, type = 'sine', gainScale = 1.0, delayMs = 0) {
+        if (settings.muted || settings.volume <= 0) return;
+        this.unlock();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime + (delayMs / 1000);
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, now);
+
+        const masterVol = (settings.volume / 100) * 0.45 * gainScale;
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(Math.max(0.001, masterVol), now + 0.012);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + (durationMs / 1000));
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + (durationMs / 1000) + 0.02);
+      }
+
+      // Warning tick during last N seconds (matches official broadcast shot clock behavior)
+      playWarningTick(secondsLeft) {
+        const profile = settings.soundProfile || 'protour';
+        if (profile === 'matchroom') {
+          // Matchroom WNT rule: silent ticks during shot; vibrate only if enabled
+          if (settings.vibrate && navigator.vibrate) {
+            navigator.vibrate(45);
+          }
+          return;
+        }
+
+        const baseFreq = Number(settings.pitch) || 1050;
+        const durMs = Number(settings.beepDuration) || 120;
+        const trigger = (f, d, g, delay) => {
+          if (profile === 'arenahorn') {
+            this.playArenaHorn(f, d, g, delay);
+          } else {
+            this.playProConsoleBeep(f, d, g, delay);
+          }
+        };
+
+        if (settings.doubleBeepFinal3 && secondsLeft <= 3 && secondsLeft > 0) {
+          const blastLen = Math.min(durMs, 240);
+          const gap = Math.min(60, Math.round(blastLen * 0.45));
+          trigger(baseFreq, blastLen, 0.95, 0);
+          trigger(baseFreq * 1.15, blastLen, 1.0, blastLen + gap);
+        } else {
+          trigger(baseFreq, durMs, 0.95, 0);
+        }
+
+        if (settings.vibrate && navigator.vibrate) {
+          navigator.vibrate(secondsLeft <= 3 ? [60, 40, 60] : Math.min(150, durMs));
+        }
+      }
+
+      // Official low-frequency time-expired buzzer at 0.0s
+      playFoulBuzzer() {
+        this.playArenaHorn(195, 650, 1.05, 0);
+        if (settings.vibrate && navigator.vibrate) {
+          navigator.vibrate([280, 80, 280]);
+        }
+      }
+
+      // Positive two-tone console chime when +EXT is triggered
+      playExtensionChime() {
+        this.playProConsoleBeep(880, 95, 0.85, 0);
+        this.playProConsoleBeep(1320, 160, 0.95, 90);
+        if (settings.vibrate && navigator.vibrate) {
+          navigator.vibrate(50);
+        }
+      }
+
+      // Subtle tactile click for Next Shot / Reset
+      playResetClick() {
+        this.playTone(640, 38, 'sine', 0.35, 0);
+      }
+    }
+
+    const sound = new SoundEngine();
+
+    // =========================================================================
+    // 3. SCREEN WAKE LOCK API (Keeps tableside phone/tablet awake)
+    // =========================================================================
+    let wakeLockSentinel = null;
+
+    async function requestWakeLock() {
+      const dot = document.getElementById('wake-dot');
+      const text = document.getElementById('wake-text');
+      if (!('wakeLock' in navigator)) {
+        if (text) text.textContent = 'Awake: N/A';
+        return;
+      }
+      try {
+        wakeLockSentinel = await navigator.wakeLock.request('screen');
+        if (dot) {
+          dot.classList.remove('bg-zinc-600');
+          dot.classList.add('bg-emerald-400');
+        }
+        if (text) text.textContent = 'Screen Awake';
+        wakeLockSentinel.addEventListener('release', () => {
+          if (dot) {
+            dot.classList.remove('bg-emerald-400');
+            dot.classList.add('bg-zinc-600');
+          }
+          if (text) text.textContent = 'Awake: Paused';
+        });
+      } catch (err) {
+        if (text) text.textContent = 'Awake: Standby';
+      }
+    }
+
+    function releaseWakeLock() {
+      if (wakeLockSentinel) {
+        wakeLockSentinel.release().catch(() => {});
+        wakeLockSentinel = null;
+      }
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && state.running) {
+        requestWakeLock();
+      }
+    });
+
+    // =========================================================================
+    // 4. TIMER STATE & HIGH-PRECISION ENGINE (Drift-free performance.now)
+    // =========================================================================
+    const state = {
+      rack: 1,
+      shot: 1,
+      extensionsLeft: settings.extPerRack,
+      extensionUsedThisShot: false,
+      totalDurationSec: settings.breakTime,
+      remainingSec: settings.breakTime,
+      running: false,
+      expired: false,
+      lastFrameTime: null,
+      lastAnnouncedSecond: null,
+      rafId: null
+    };
+
+    function getInitialShotDuration(shotNumber) {
+      return shotNumber === 1 ? Number(settings.breakTime) : Number(settings.baseTime);
+    }
+
+    function startTimer() {
+      if (state.expired) {
+        // If expired and user taps Start, advance to next shot cleanly
+        nextShot(true);
+        return;
+      }
+      if (state.running) return;
+      sound.unlock();
+      state.running = true;
+      state.lastFrameTime = performance.now();
+      // Initialize lastAnnouncedSecond so we don't double-beep immediately on resume unless crossing an integer boundary
+      state.lastAnnouncedSecond = Math.ceil(state.remainingSec);
+      requestWakeLock();
+      render();
+      state.rafId = requestAnimationFrame(tick);
+    }
+
+    function pauseTimer() {
+      if (!state.running) return;
+      state.running = false;
+      if (state.rafId) {
+        cancelAnimationFrame(state.rafId);
+        state.rafId = null;
+      }
+      releaseWakeLock();
+      render();
+    }
+
+    function toggleStartPause() {
+      if (state.running) {
+        pauseTimer();
+      } else {
+        startTimer();
+      }
+    }
+
+    function nextShot(forceStart = null) {
+      sound.unlock();
+      sound.playResetClick();
+      if (state.rafId) {
+        cancelAnimationFrame(state.rafId);
+        state.rafId = null;
+      }
+
+      state.shot += 1;
+      state.extensionUsedThisShot = false;
+      state.expired = false;
+      const dur = getInitialShotDuration(state.shot);
+      state.totalDurationSec = dur;
+      state.remainingSec = dur;
+      state.lastAnnouncedSecond = Math.ceil(dur) + 1;
+
+      const shouldRun = forceStart !== null ? forceStart : settings.autoStartNext;
+      state.running = shouldRun;
+
+      if (shouldRun) {
+        state.lastFrameTime = performance.now();
+        requestWakeLock();
+        state.rafId = requestAnimationFrame(tick);
+      } else {
+        releaseWakeLock();
+      }
+      render();
+    }
+
+    function newRack() {
+      sound.unlock();
+      sound.playResetClick();
+      if (state.rafId) {
+        cancelAnimationFrame(state.rafId);
+        state.rafId = null;
+      }
+
+      state.rack += 1;
+      state.shot = 1;
+      state.extensionsLeft = Number(settings.extPerRack);
+      state.extensionUsedThisShot = false;
+      state.expired = false;
+      state.running = false;
+
+      const dur = getInitialShotDuration(1);
+      state.totalDurationSec = dur;
+      state.remainingSec = dur;
+      state.lastAnnouncedSecond = Math.ceil(dur) + 1;
+
+      releaseWakeLock();
+      render();
+      showToast(`Rack #${state.rack} Ready · Extensions Reset`);
+    }
+
+    function triggerExtension() {
+      if (state.expired) return;
+      if (Number(settings.extPerRack) !== 99 && state.extensionsLeft <= 0) {
+        showToast('No Extensions Remaining This Rack');
+        return;
+      }
+
+      sound.unlock();
+      sound.playExtensionChime();
+
+      if (Number(settings.extPerRack) !== 99) {
+        state.extensionsLeft = Math.max(0, state.extensionsLeft - 1);
+      }
+      state.extensionUsedThisShot = true;
+
+      const addSec = Number(settings.extTime);
+      state.remainingSec += addSec;
+      state.totalDurationSec = Math.max(state.totalDurationSec + addSec, state.remainingSec);
+      state.lastAnnouncedSecond = Math.ceil(state.remainingSec) + 1;
+
+      render();
+      showToast(`+${addSec}s Extension Added`);
+    }
+
+    function tick(now) {
+      if (!state.running) return;
+
+      const dt = (now - state.lastFrameTime) / 1000;
+      state.lastFrameTime = now;
+      state.remainingSec = Math.max(0, state.remainingSec - dt);
+
+      // Whole-second boundary crossing check for audible warning beeps
+      const currentCeilSec = Math.ceil(state.remainingSec);
+      if (currentCeilSec < state.lastAnnouncedSecond && currentCeilSec > 0) {
+        state.lastAnnouncedSecond = currentCeilSec;
+        if (currentCeilSec <= Number(settings.warnSec)) {
+          sound.playWarningTick(currentCeilSec);
+        }
+      }
+
+      // Check expiration (0.0s)
+      if (state.remainingSec <= 0) {
+        state.remainingSec = 0;
+        state.running = false;
+        state.expired = true;
+        state.rafId = null;
+        sound.playFoulBuzzer();
+        releaseWakeLock();
+        render();
+        return;
+      }
+
+      render();
+      state.rafId = requestAnimationFrame(tick);
+    }
+
+    // =========================================================================
+    // 5. UI RENDERING
+    // =========================================================================
+    const elTimeDisplay = document.getElementById('time-display');
+    const elClockSurface = document.getElementById('clock-surface');
+    const elProgressBar = document.getElementById('progress-bar');
+    const elStatusBadge = document.getElementById('status-badge');
+    const elStatusDot = document.getElementById('status-dot');
+    const elStatusText = document.getElementById('status-text');
+    const elFoulBanner = document.getElementById('foul-banner');
+    const elExtUsedBadge = document.getElementById('ext-used-badge');
+    const elStartPauseBtn = document.getElementById('btn-start-pause');
+    const elStartPauseLabel = document.getElementById('start-pause-label');
+    const elExtBtn = document.getElementById('btn-extension');
+    const elExtBtnLabel = document.getElementById('ext-btn-label');
+
+    function formatTime(sec) {
+      if (settings.showTenths) {
+        return sec.toFixed(1);
+      }
+      return Math.ceil(sec).toString();
+    }
+
+    function render() {
+      // 1. Time Digits
+      elTimeDisplay.textContent = formatTime(state.remainingSec);
+
+      // 2. Progress Bar
+      const pct = state.totalDurationSec > 0
+        ? Math.min(100, Math.max(0, (state.remainingSec / state.totalDurationSec) * 100))
+        : 0;
+      elProgressBar.style.width = `${pct}%`;
+
+      // 3. Urgency & State Styling
+      const isWarning = state.running && !state.expired && state.remainingSec > 0 && state.remainingSec <= Number(settings.warnSec);
+
+      elClockSurface.classList.remove('border-zinc-800', 'border-zinc-500', 'border-amber-500', 'border-red-500', 'state-warning', 'state-foul');
+      elTimeDisplay.classList.remove('text-zinc-50', 'text-amber-400', 'text-red-500');
+      elProgressBar.classList.remove('bg-zinc-100', 'bg-amber-400', 'bg-red-500');
+
+      if (state.expired) {
+        elClockSurface.classList.add('border-red-500', 'state-foul');
+        elTimeDisplay.classList.add('text-red-500');
+        elProgressBar.classList.add('bg-red-500');
+        elFoulBanner.classList.remove('hidden');
+        elStatusText.textContent = 'FOUL / TIME';
+        elStatusDot.className = 'w-2 h-2 rounded-full bg-red-500';
+      } else if (isWarning) {
+        elClockSurface.classList.add('border-amber-500', 'state-warning');
+        elTimeDisplay.classList.add('text-amber-400');
+        elProgressBar.classList.add('bg-amber-400');
+        elFoulBanner.classList.add('hidden');
+        elStatusText.textContent = 'WARNING';
+        elStatusDot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-ping';
+      } else if (state.running) {
+        elClockSurface.classList.add('border-zinc-500');
+        elTimeDisplay.classList.add('text-zinc-50');
+        elProgressBar.classList.add('bg-zinc-100');
+        elFoulBanner.classList.add('hidden');
+        elStatusText.textContent = 'RUNNING';
+        elStatusDot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+      } else {
+        elClockSurface.classList.add('border-zinc-800');
+        elTimeDisplay.classList.add('text-zinc-50');
+        elProgressBar.classList.add('bg-zinc-100');
+        elFoulBanner.classList.add('hidden');
+        elStatusText.textContent = state.remainingSec === state.totalDurationSec ? 'READY' : 'PAUSED';
+        elStatusDot.className = 'w-2 h-2 rounded-full bg-zinc-400';
+      }
+
+      // 4. Extension Active Badge
+      if (state.extensionUsedThisShot && !state.expired) {
+        elExtUsedBadge.classList.remove('hidden');
+      } else {
+        elExtUsedBadge.classList.add('hidden');
+      }
+
+      // 5. Telemetry Strip
+      document.getElementById('rack-count').textContent = state.rack;
+      document.getElementById('shot-count').textContent = state.shot;
+      const breakTag = document.getElementById('break-tag');
+      if (state.shot === 1) {
+        breakTag.classList.remove('hidden');
+      } else {
+        breakTag.classList.add('hidden');
+      }
+
+      const maxExt = Number(settings.extPerRack);
+      const extCountEl = document.getElementById('ext-count');
+      const extTotalEl = document.getElementById('ext-total-label');
+      const extPipsEl = document.getElementById('ext-pips');
+
+      if (maxExt === 99) {
+        extCountEl.textContent = '∞';
+        extTotalEl.textContent = '';
+        extPipsEl.innerHTML = '';
+      } else {
+        extCountEl.textContent = state.extensionsLeft;
+        extTotalEl.textContent = `/ ${maxExt}`;
+        // Visual pips up to 4
+        if (maxExt > 0 && maxExt <= 4) {
+          let pipsHtml = '';
+          for (let i = 0; i < maxExt; i++) {
+            const active = i < state.extensionsLeft;
+            pipsHtml += `<span class="w-2 h-2 rounded-full ${active ? 'bg-amber-400' : 'bg-zinc-800'}"></span>`;
+          }
+          extPipsEl.innerHTML = pipsHtml;
+        } else {
+          extPipsEl.innerHTML = '';
+        }
+      }
+
+      // 6. Action Buttons
+      if (state.expired) {
+        elStartPauseLabel.textContent = 'NEXT';
+        elStartPauseBtn.className = 'col-span-5 py-4 sm:py-5 px-3 rounded-2xl font-extrabold text-base sm:text-lg tracking-wider uppercase flex flex-col items-center justify-center gap-1 bg-red-500 text-white hover:bg-red-400 active:scale-[0.98] transition shadow-lg border border-red-400';
+      } else if (state.running) {
+        elStartPauseLabel.textContent = 'PAUSE';
+        elStartPauseBtn.className = 'col-span-5 py-4 sm:py-5 px-3 rounded-2xl font-extrabold text-base sm:text-lg tracking-wider uppercase flex flex-col items-center justify-center gap-1 bg-zinc-800 text-zinc-100 hover:bg-zinc-700 active:scale-[0.98] transition shadow-lg border border-zinc-600';
+      } else {
+        elStartPauseLabel.textContent = 'START';
+        elStartPauseBtn.className = 'col-span-5 py-4 sm:py-5 px-3 rounded-2xl font-extrabold text-base sm:text-lg tracking-wider uppercase flex flex-col items-center justify-center gap-1 bg-zinc-100 text-zinc-950 hover:bg-white active:scale-[0.98] transition shadow-lg border border-white';
+      }
+
+      elExtBtnLabel.textContent = `+${settings.extTime}s`;
+      const noExtAvailable = state.expired || (maxExt !== 99 && state.extensionsLeft <= 0);
+      elExtBtn.disabled = noExtAvailable;
+
+      // 7. Header Rule Subtitle & Target
+      document.getElementById('target-time-label').textContent = `TARGET: ${Math.round(state.totalDurationSec)}s`;
+      const warnLabel = Number(settings.warnSec) > 0 ? `${settings.warnSec}s Warn` : 'No Warn';
+      document.getElementById('active-rule-label').textContent = `${settings.baseTime}s Shot · +${settings.extTime}s Ext · ${warnLabel}`;
+
+      // 8. Sound Icon State
+      document.getElementById('icon-sound-on').classList.toggle('hidden', settings.muted);
+      document.getElementById('icon-sound-off').classList.toggle('hidden', !settings.muted);
+
+      // 9. Active Preset Pill Highlight
+      document.querySelectorAll('.preset-pill').forEach(btn => {
+        const key = btn.getAttribute('data-preset');
+        if (key === settings.preset) {
+          btn.className = 'preset-pill shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border bg-zinc-100 text-zinc-950 border-zinc-100 transition';
+        } else {
+          btn.className = 'preset-pill shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold border bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-zinc-200 hover:border-zinc-700 transition';
+        }
+      });
+    }
+
+    // =========================================================================
+    // 6. TOAST HELPER
+    // =========================================================================
+    let toastTimer = null;
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toast-msg');
+      toastMsg.textContent = msg;
+      toast.classList.remove('opacity-0');
+      toast.classList.add('opacity-100');
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.classList.remove('opacity-100');
+        toast.classList.add('opacity-0');
+      }, 1800);
+    }
+
+    // =========================================================================
+    // 7. EVENT LISTENERS & SETTINGS BINDING
+    // =========================================================================
+    elClockSurface.addEventListener('click', toggleStartPause);
+    elClockSurface.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggleStartPause();
+      }
+    });
+
+    elStartPauseBtn.addEventListener('click', toggleStartPause);
+    document.getElementById('btn-next-shot').addEventListener('click', () => nextShot());
+    elExtBtn.addEventListener('click', triggerExtension);
+    document.getElementById('btn-new-rack').addEventListener('click', newRack);
+
+    // Mute toggle
+    document.getElementById('btn-mute').addEventListener('click', () => {
+      settings.muted = !settings.muted;
+      saveSettings();
+      if (!settings.muted) {
+        sound.unlock();
+        sound.playResetClick();
+      }
+      render();
+      showToast(settings.muted ? 'Audio Muted' : 'Audio Enabled');
+    });
+
+    // Quick Presets
+    document.querySelectorAll('.preset-pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const key = btn.getAttribute('data-preset');
+        if (key === 'custom') {
+          openSettingsModal();
+          return;
+        }
+        const p = PRESETS[key];
+        if (!p) return;
+        settings.preset = key;
+        settings.baseTime = p.baseTime;
+        settings.breakTime = p.breakTime;
+        settings.extTime = p.extTime;
+        settings.extPerRack = p.extPerRack;
+        settings.warnSec = p.warnSec;
+        saveSettings();
+
+        // Reset current shot cleanly to match new rule
+        pauseTimer();
+        state.shot = 1;
+        state.extensionsLeft = settings.extPerRack;
+        state.extensionUsedThisShot = false;
+        state.expired = false;
+        const dur = getInitialShotDuration(1);
+        state.totalDurationSec = dur;
+        state.remainingSec = dur;
+        render();
+        showToast(`Preset: ${p.name}`);
+      });
+    });
+
+    // Keyboard shortcuts (Desktop / Bluetooth clicker support)
+    document.addEventListener('keydown', (e) => {
+      // Ignore if inside an input or modal is open
+      const settingsOpen = !document.getElementById('settings-modal').classList.contains('hidden');
+      const pwaOpen = !document.getElementById('pwa-modal').classList.contains('hidden');
+      if (settingsOpen || pwaOpen) {
+        if (e.key === 'Escape') {
+          closeSettingsModal();
+          closePwaModal();
+        }
+        return;
+      }
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        toggleStartPause();
+      } else if (e.key === 'n' || e.key === 'N' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        nextShot();
+      } else if (e.key === 'e' || e.key === 'E') {
+        e.preventDefault();
+        triggerExtension();
+      } else if (e.key === 'r' || e.key === 'R') {
+        e.preventDefault();
+        newRack();
+      }
+    });
+
+    // Settings Modal Logic
+    const settingsModal = document.getElementById('settings-modal');
+
+    function populateSettingsForm() {
+      document.getElementById('set-base-time').value = settings.baseTime;
+      document.getElementById('set-break-time').value = settings.breakTime;
+      document.getElementById('set-ext-time').value = settings.extTime;
+      document.getElementById('set-ext-count').value = settings.extPerRack;
+      document.getElementById('set-warn-sec').value = settings.warnSec;
+      document.getElementById('set-sound-profile').value = settings.soundProfile || 'protour';
+      document.getElementById('set-volume').value = settings.volume;
+      document.getElementById('val-volume').textContent = `${settings.volume}%`;
+      document.getElementById('set-pitch').value = settings.pitch;
+      document.getElementById('val-pitch').textContent = `${settings.pitch} Hz`;
+      document.getElementById('set-beep-duration').value = settings.beepDuration;
+      document.getElementById('val-beep-duration').textContent = `${settings.beepDuration} ms`;
+      document.getElementById('set-auto-start').checked = settings.autoStartNext;
+      document.getElementById('set-tenths').checked = settings.showTenths;
+      document.getElementById('set-final3').checked = settings.doubleBeepFinal3;
+      document.getElementById('set-vibrate').checked = settings.vibrate;
+    }
+
+    function openSettingsModal() {
+      populateSettingsForm();
+      settingsModal.classList.remove('hidden');
+    }
+
+    function closeSettingsModal() {
+      settingsModal.classList.add('hidden');
+    }
+
+    document.getElementById('btn-settings').addEventListener('click', openSettingsModal);
+    document.getElementById('btn-close-settings').addEventListener('click', closeSettingsModal);
+
+    // Stepper buttons (+/-) inside settings
+    document.querySelectorAll('.step-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const inputId = btn.getAttribute('data-step');
+        const delta = Number(btn.getAttribute('data-delta'));
+        const input = document.getElementById(inputId);
+        const min = Number(input.min);
+        const max = Number(input.max);
+        let val = (Number(input.value) || 0) + delta;
+        val = Math.max(min, Math.min(max, val));
+        input.value = val;
+      });
+    });
+
+    // Live slider & profile readouts
+    document.getElementById('set-sound-profile').addEventListener('change', (e) => {
+      const prof = e.target.value;
+      if (prof === 'protour') {
+        document.getElementById('set-pitch').value = 1050;
+        document.getElementById('val-pitch').textContent = '1050 Hz';
+        document.getElementById('set-beep-duration').value = 120;
+        document.getElementById('val-beep-duration').textContent = '120 ms';
+      } else if (prof === 'arenahorn') {
+        document.getElementById('set-pitch').value = 340;
+        document.getElementById('val-pitch').textContent = '340 Hz';
+        document.getElementById('set-beep-duration').value = 200;
+        document.getElementById('val-beep-duration').textContent = '200 ms';
+      }
+    });
+    document.getElementById('set-volume').addEventListener('input', (e) => {
+      document.getElementById('val-volume').textContent = `${e.target.value}%`;
+    });
+    document.getElementById('set-pitch').addEventListener('input', (e) => {
+      document.getElementById('val-pitch').textContent = `${e.target.value} Hz`;
+    });
+    document.getElementById('set-beep-duration').addEventListener('input', (e) => {
+      document.getElementById('val-beep-duration').textContent = `${e.target.value} ms`;
+    });
+
+    // Test Beep inside settings (plays warning tick + expiration horn preview)
+    document.getElementById('btn-test-beep').addEventListener('click', () => {
+      const prevProfile = settings.soundProfile;
+      const prevVol = settings.volume;
+      const prevPitch = settings.pitch;
+      const prevDur = settings.beepDuration;
+      const prevMuted = settings.muted;
+      settings.soundProfile = document.getElementById('set-sound-profile').value;
+      settings.volume = Number(document.getElementById('set-volume').value);
+      settings.pitch = Number(document.getElementById('set-pitch').value);
+      settings.beepDuration = Number(document.getElementById('set-beep-duration').value);
+      settings.muted = false;
+      if (settings.soundProfile === 'matchroom') {
+        sound.playFoulBuzzer();
+      } else {
+        sound.playWarningTick(4);
+      }
+      settings.soundProfile = prevProfile;
+      settings.volume = prevVol;
+      settings.pitch = prevPitch;
+      settings.beepDuration = prevDur;
+      settings.muted = prevMuted;
+    });
+
+    // Save Settings
+    document.getElementById('btn-save-settings').addEventListener('click', () => {
+      const clamp = (v, min, max, fallback) => {
+        const n = parseInt(v, 10);
+        if (isNaN(n)) return fallback;
+        return Math.max(min, Math.min(max, n));
+      };
+
+      settings.baseTime = clamp(document.getElementById('set-base-time').value, 5, 300, 30);
+      settings.breakTime = clamp(document.getElementById('set-break-time').value, 5, 300, 30);
+      settings.extTime = clamp(document.getElementById('set-ext-time').value, 5, 300, 30);
+      settings.extPerRack = clamp(document.getElementById('set-ext-count').value, 0, 99, 1);
+      settings.warnSec = clamp(document.getElementById('set-warn-sec').value, 0, 60, 5);
+      settings.soundProfile = document.getElementById('set-sound-profile').value || 'protour';
+      settings.volume = clamp(document.getElementById('set-volume').value, 0, 100, 85);
+      settings.pitch = clamp(document.getElementById('set-pitch').value, 200, 2000, 1050);
+      settings.beepDuration = clamp(document.getElementById('set-beep-duration').value, 50, 600, 120);
+      settings.autoStartNext = document.getElementById('set-auto-start').checked;
+      settings.showTenths = document.getElementById('set-tenths').checked;
+      settings.doubleBeepFinal3 = document.getElementById('set-final3').checked;
+      settings.vibrate = document.getElementById('set-vibrate').checked;
+      settings.preset = 'custom';
+
+      saveSettings();
+
+      // Update current timer if not actively running
+      if (!state.running) {
+        state.extensionsLeft = settings.extPerRack;
+        state.extensionUsedThisShot = false;
+        state.expired = false;
+        const dur = getInitialShotDuration(state.shot);
+        state.totalDurationSec = dur;
+        state.remainingSec = dur;
+      }
+
+      closeSettingsModal();
+      render();
+      showToast('Rules Updated');
+    });
+
+    // Reset Defaults
+    document.getElementById('btn-reset-defaults').addEventListener('click', () => {
+      settings = { ...DEFAULT_SETTINGS };
+      saveSettings();
+      populateSettingsForm();
+      showToast('Defaults Restored');
+    });
+
+    // =========================================================================
+    // 8. PWA MANIFEST, SERVICE WORKER & GITHUB PAGES EXPORT BUNDLE
+    // =========================================================================
+    const SVG_ICON_CODE = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#09090b"/>
+  <circle cx="256" cy="256" r="184" fill="#fafafa"/>
+  <circle cx="256" cy="256" r="76" fill="#09090b"/>
+  <text x="256" y="276" font-family="monospace" font-weight="800" font-size="64" fill="#fafafa" text-anchor="middle">30</text>
+</svg>`;
+
+    const MANIFEST_OBJ = {
+      name: "Shot Clock — Cue Sports Timer",
+      short_name: "Shot Clock",
+      description: "High-contrast tableside Pool & Cue Sports Shot Clock with audible countdown and extensions.",
+      start_url: "./index.html",
+      scope: "./",
+      display: "standalone",
+      orientation: "portrait",
+      background_color: "#09090b",
+      theme_color: "#09090b",
+      icons: [
+        {
+          src: "./icon.svg",
+          sizes: "any",
+          type: "image/svg+xml",
+          purpose: "any maskable"
+        }
+      ]
+    };
+
+    const SW_CODE = `const CACHE_NAME = 'cue-shot-clock-v1';
+const ASSETS = [
+  './',
+  './index.html',
+  './manifest.json',
+  './icon.svg'
+];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+    ).then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request).then((cached) => {
+      return cached || fetch(event.request).then((response) => {
+        if (event.request.method === 'GET' && response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        }
+        return response;
+      }).catch(() => caches.match('./index.html'));
+    })
+  );
+});`;
+
+    // Inject inline SVG icon & dynamic manifest Blob URL so PWA works immediately
+    (function initPwaAssets() {
+      const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(SVG_ICON_CODE);
+      document.getElementById('apple-icon').setAttribute('href', svgDataUrl);
+
+      const runtimeManifest = {
+        ...MANIFEST_OBJ,
+        start_url: window.location.href,
+        icons: [{ src: svgDataUrl, sizes: '512x512', type: 'image/svg+xml', purpose: 'any maskable' }]
+      };
+      const manifestBlob = new Blob([JSON.stringify(runtimeManifest, null, 2)], { type: 'application/manifest+json' });
+      document.getElementById('pwa-manifest').setAttribute('href', URL.createObjectURL(manifestBlob));
+
+      // Attempt standard ./sw.js registration (works on GitHub Pages HTTPS), with silent graceful fallback in sandboxed previews
+      if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost')) {
+        navigator.serviceWorker.register('./sw.js').catch(() => {
+          // Fallback blob SW if ./sw.js isn't hosted yet
+          try {
+            const swBlob = new Blob([SW_CODE], { type: 'application/javascript' });
+            navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(() => {});
+          } catch (e) {}
+        });
+      }
+    })();
+
+    // Capture beforeinstallprompt for native Add to Home Screen button
+    let deferredInstallPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      document.getElementById('install-prompt-box').classList.remove('hidden');
+    });
+
+    document.getElementById('btn-trigger-install').addEventListener('click', async () => {
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      const { outcome } = await deferredInstallPrompt.userChoice;
+      if (outcome === 'accepted') {
+        document.getElementById('install-prompt-box').classList.add('hidden');
+        showToast('Installing Shot Clock...');
+      }
+      deferredInstallPrompt = null;
+    });
+
+    // PWA Modal Controls
+    const pwaModal = document.getElementById('pwa-modal');
+    function openPwaModal() {
+      document.getElementById('code-manifest').textContent = JSON.stringify(MANIFEST_OBJ, null, 2);
+      document.getElementById('code-sw').textContent = SW_CODE;
+      pwaModal.classList.remove('hidden');
+    }
+    function closePwaModal() {
+      pwaModal.classList.add('hidden');
+    }
+
+    document.getElementById('btn-pwa-modal').addEventListener('click', openPwaModal);
+    document.getElementById('btn-close-pwa').addEventListener('click', closePwaModal);
+    document.getElementById('btn-close-pwa-footer').addEventListener('click', closePwaModal);
+
+    // Copy buttons inside PWA modal (uses execCommand fallback for iframe compatibility)
+    document.querySelectorAll('.copy-pwa-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const type = btn.getAttribute('data-copy');
+        const text = type === 'manifest' ? JSON.stringify(MANIFEST_OBJ, null, 2) : SW_CODE;
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+          document.execCommand('copy');
+          showToast(`Copied ${type === 'manifest' ? 'manifest.json' : 'sw.js'}`);
+        } catch (err) {
+          showToast('Copy failed');
+        }
+        document.body.removeChild(ta);
+      });
+    });
+
+    // 1-Click File Downloads for GitHub Pages repo
+    document.querySelectorAll('.dl-pwa-file').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const filename = btn.getAttribute('data-dl');
+        let content = '';
+        let mime = 'text/plain;charset=utf-8';
+
+        if (filename === 'index.html') {
+          content = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+          mime = 'text/html;charset=utf-8';
+        } else if (filename === 'manifest.json') {
+          content = JSON.stringify(MANIFEST_OBJ, null, 2);
+          mime = 'application/json;charset=utf-8';
+        } else if (filename === 'sw.js') {
+          content = SW_CODE;
+          mime = 'application/javascript;charset=utf-8';
+        } else if (filename === 'icon.svg') {
+          content = SVG_ICON_CODE;
+          mime = 'image/svg+xml;charset=utf-8';
+        }
+
+        const blob = new Blob([content], { type: mime });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast(`Downloaded ${filename}`);
+      });
+    });
+
+    // Initial Render
+    render();
+  </script>
+</body>
+</html>
