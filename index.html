@@ -6,12 +6,11 @@
   <meta name="theme-color" content="#09090b" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="description" content="High-contrast tableside Pool & Cue Sports Shot Clock with audible countdown, extensions, and offline PWA support." />
+  <meta name="description" content="High-contrast tableside Pool & Cue Sports Shot Clock with audible countdown, extensions, and offline support." />
   <title>SHOT CLOCK // Cue Sports Timer</title>
 
-  <!-- Dynamic PWA Manifest & Apple Touch Icon injected via script for single-file & GitHub Pages compatibility -->
-  <link id="pwa-manifest" rel="manifest" href="" />
-  <link id="apple-icon" rel="apple-touch-icon" href="" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="apple-touch-icon" href="./icon-192.png" />
 
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -133,7 +132,7 @@
       </div>
     </div>
 
-    <!-- Right Action Icons: Mute, PWA Export, Settings -->
+    <!-- Right Action Icons: Mute, Settings -->
     <div class="flex items-center gap-1.5">
       <button id="btn-mute" type="button" aria-label="Toggle Sound" title="Mute / Unmute Audio"
         class="p-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 active:scale-95 border border-zinc-800 text-zinc-200 transition">
@@ -149,16 +148,6 @@
           <line x1="23" y1="9" x2="17" y2="15"></line>
           <line x1="17" y1="9" x2="23" y2="15"></line>
         </svg>
-      </button>
-
-      <button id="btn-pwa-modal" type="button" aria-label="GitHub Pages PWA Setup" title="Deploy / Install PWA"
-        class="p-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 active:scale-95 border border-zinc-800 text-zinc-300 transition flex items-center gap-1.5">
-        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-          <polyline points="7 10 12 15 17 10"></polyline>
-          <line x1="12" y1="15" x2="12" y2="3"></line>
-        </svg>
-        <span class="hidden sm:inline text-xs font-semibold">PWA</span>
       </button>
 
       <button id="btn-settings" type="button" aria-label="Timer Settings" title="Settings"
@@ -478,87 +467,6 @@
         </button>
         <button id="btn-save-settings" type="button" class="px-5 py-2.5 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-extrabold uppercase tracking-wider transition">
           Apply & Close
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- GITHUB PAGES PWA DEPLOYMENT BUNDLE MODAL -->
-  <div id="pwa-modal" class="fixed inset-0 z-40 hidden bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-    <div class="bg-zinc-900 border border-zinc-800 w-full max-w-xl rounded-t-3xl sm:rounded-3xl max-h-[90dvh] flex flex-col shadow-2xl overflow-hidden">
-      <div class="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
-        <div>
-          <h2 class="text-base font-extrabold tracking-wide uppercase text-zinc-100">GitHub Pages PWA Setup</h2>
-          <p class="text-xs text-zinc-400">Host as an offline installable app on GitHub Pages</p>
-        </div>
-        <button id="btn-close-pwa" type="button" class="p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200">
-          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
-      </div>
-
-      <div class="p-5 overflow-y-auto space-y-4 text-xs text-zinc-300">
-        <!-- Install Prompt Banner if browser supports beforeinstallprompt -->
-        <div id="install-prompt-box" class="hidden p-3.5 rounded-2xl bg-zinc-100 text-zinc-950 flex items-center justify-between gap-3">
-          <div>
-            <p class="font-extrabold text-sm">Install App Now</p>
-            <p class="text-xs opacity-80">Add Shot Clock directly to your home screen.</p>
-          </div>
-          <button id="btn-trigger-install" type="button" class="px-4 py-2 rounded-xl bg-zinc-950 text-white font-bold text-xs uppercase tracking-wider shrink-0">
-            Install
-          </button>
-        </div>
-
-        <div class="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800 space-y-2">
-          <p class="font-bold text-zinc-100 text-sm">How to deploy to GitHub Pages (30 seconds):</p>
-          <ol class="list-decimal list-inside space-y-1 text-zinc-400 leading-relaxed">
-            <li>Create a new GitHub repository (e.g., <code class="text-zinc-200">pool-shot-clock</code>).</li>
-            <li>Download or commit <code class="text-zinc-200">index.html</code>, <code class="text-zinc-200">manifest.json</code>, <code class="text-zinc-200">sw.js</code>, and <code class="text-zinc-200">icon.svg</code> to the root folder.</li>
-            <li>Open <strong class="text-zinc-200">Settings → Pages</strong> and set Source to <code class="text-zinc-200">main / (root)</code>.</li>
-            <li>Open your GitHub Pages URL on iOS Safari or Android Chrome and tap <strong class="text-zinc-200">Add to Home Screen</strong>.</li>
-          </ol>
-        </div>
-
-        <!-- 1-Click Download Bundle -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          <button type="button" data-dl="index.html" class="dl-pwa-file p-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-center font-mono font-bold text-zinc-100 transition">
-            ↓ index.html
-          </button>
-          <button type="button" data-dl="manifest.json" class="dl-pwa-file p-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-center font-mono font-bold text-zinc-100 transition">
-            ↓ manifest.json
-          </button>
-          <button type="button" data-dl="sw.js" class="dl-pwa-file p-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-center font-mono font-bold text-zinc-100 transition">
-            ↓ sw.js
-          </button>
-          <button type="button" data-dl="icon.svg" class="dl-pwa-file p-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-center font-mono font-bold text-zinc-100 transition">
-            ↓ icon.svg
-          </button>
-        </div>
-
-        <!-- Copyable manifest.json -->
-        <div class="space-y-1.5">
-          <div class="flex items-center justify-between">
-            <span class="font-mono font-bold text-zinc-200">manifest.json</span>
-            <button type="button" data-copy="manifest" class="copy-pwa-btn px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-[11px] font-bold text-zinc-200">Copy</button>
-          </div>
-          <pre id="code-manifest" class="p-3 rounded-xl bg-zinc-950 border border-zinc-800 font-mono text-[11px] text-zinc-400 overflow-x-auto"></pre>
-        </div>
-
-        <!-- Copyable sw.js -->
-        <div class="space-y-1.5">
-          <div class="flex items-center justify-between">
-            <span class="font-mono font-bold text-zinc-200">sw.js (Offline Service Worker)</span>
-            <button type="button" data-copy="sw" class="copy-pwa-btn px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-[11px] font-bold text-zinc-200">Copy</button>
-          </div>
-          <pre id="code-sw" class="p-3 rounded-xl bg-zinc-950 border border-zinc-800 font-mono text-[11px] text-zinc-400 overflow-x-auto"></pre>
-        </div>
-      </div>
-
-      <div class="px-5 py-3.5 border-t border-zinc-800 bg-zinc-950/60 flex justify-end">
-        <button id="btn-close-pwa-footer" type="button" class="px-5 py-2 rounded-xl bg-zinc-100 text-zinc-950 text-xs font-extrabold uppercase tracking-wider">
-          Done
         </button>
       </div>
     </div>
@@ -1269,13 +1177,11 @@
 
     // Keyboard shortcuts (Desktop / Bluetooth clicker support)
     document.addEventListener('keydown', (e) => {
-      // Ignore if inside an input or modal is open
+      // Ignore if inside an input or settings are open
       const settingsOpen = !document.getElementById('settings-modal').classList.contains('hidden');
-      const pwaOpen = !document.getElementById('pwa-modal').classList.contains('hidden');
-      if (settingsOpen || pwaOpen) {
+      if (settingsOpen) {
         if (e.key === 'Escape') {
           closeSettingsModal();
-          closePwaModal();
         }
         return;
       }
@@ -1442,184 +1348,15 @@
     });
 
     // =========================================================================
-    // 8. PWA MANIFEST, SERVICE WORKER & GITHUB PAGES EXPORT BUNDLE
+    // 8. PWA SERVICE WORKER
     // =========================================================================
-    const SVG_ICON_CODE = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#09090b"/>
-  <circle cx="256" cy="256" r="184" fill="#fafafa"/>
-  <circle cx="256" cy="256" r="76" fill="#09090b"/>
-  <text x="256" y="276" font-family="monospace" font-weight="800" font-size="64" fill="#fafafa" text-anchor="middle">30</text>
-</svg>`;
-
-    const MANIFEST_OBJ = {
-      name: "Shot Clock — Cue Sports Timer",
-      short_name: "Shot Clock",
-      description: "High-contrast tableside Pool & Cue Sports Shot Clock with audible countdown and extensions.",
-      start_url: "./index.html",
-      scope: "./",
-      display: "standalone",
-      orientation: "portrait",
-      background_color: "#09090b",
-      theme_color: "#09090b",
-      icons: [
-        {
-          src: "./icon.svg",
-          sizes: "any",
-          type: "image/svg+xml",
-          purpose: "any maskable"
-        }
-      ]
-    };
-
-    const SW_CODE = `const CACHE_NAME = 'cue-shot-clock-v1';
-const ASSETS = [
-  './',
-  './index.html',
-  './manifest.json',
-  './icon.svg'
-];
-
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting())
-  );
-});
-
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    ).then(() => self.clients.claim())
-  );
-});
-
-self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      return cached || fetch(event.request).then((response) => {
-        if (event.request.method === 'GET' && response.status === 200) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-        }
-        return response;
-      }).catch(() => caches.match('./index.html'));
-    })
-  );
-});`;
-
-    // Inject inline SVG icon & dynamic manifest Blob URL so PWA works immediately
-    (function initPwaAssets() {
-      const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(SVG_ICON_CODE);
-      document.getElementById('apple-icon').setAttribute('href', svgDataUrl);
-
-      const runtimeManifest = {
-        ...MANIFEST_OBJ,
-        start_url: window.location.href,
-        icons: [{ src: svgDataUrl, sizes: '512x512', type: 'image/svg+xml', purpose: 'any maskable' }]
-      };
-      const manifestBlob = new Blob([JSON.stringify(runtimeManifest, null, 2)], { type: 'application/manifest+json' });
-      document.getElementById('pwa-manifest').setAttribute('href', URL.createObjectURL(manifestBlob));
-
-      // Attempt standard ./sw.js registration (works on GitHub Pages HTTPS), with silent graceful fallback in sandboxed previews
-      if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost')) {
-        navigator.serviceWorker.register('./sw.js').catch(() => {
-          // Fallback blob SW if ./sw.js isn't hosted yet
-          try {
-            const swBlob = new Blob([SW_CODE], { type: 'application/javascript' });
-            navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(() => {});
-          } catch (e) {}
+    if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js', { scope: './' }).catch((error) => {
+          console.error('Shot Clock service worker registration failed:', error);
         });
-      }
-    })();
-
-    // Capture beforeinstallprompt for native Add to Home Screen button
-    let deferredInstallPrompt = null;
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredInstallPrompt = e;
-      document.getElementById('install-prompt-box').classList.remove('hidden');
-    });
-
-    document.getElementById('btn-trigger-install').addEventListener('click', async () => {
-      if (!deferredInstallPrompt) return;
-      deferredInstallPrompt.prompt();
-      const { outcome } = await deferredInstallPrompt.userChoice;
-      if (outcome === 'accepted') {
-        document.getElementById('install-prompt-box').classList.add('hidden');
-        showToast('Installing Shot Clock...');
-      }
-      deferredInstallPrompt = null;
-    });
-
-    // PWA Modal Controls
-    const pwaModal = document.getElementById('pwa-modal');
-    function openPwaModal() {
-      document.getElementById('code-manifest').textContent = JSON.stringify(MANIFEST_OBJ, null, 2);
-      document.getElementById('code-sw').textContent = SW_CODE;
-      pwaModal.classList.remove('hidden');
-    }
-    function closePwaModal() {
-      pwaModal.classList.add('hidden');
-    }
-
-    document.getElementById('btn-pwa-modal').addEventListener('click', openPwaModal);
-    document.getElementById('btn-close-pwa').addEventListener('click', closePwaModal);
-    document.getElementById('btn-close-pwa-footer').addEventListener('click', closePwaModal);
-
-    // Copy buttons inside PWA modal (uses execCommand fallback for iframe compatibility)
-    document.querySelectorAll('.copy-pwa-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const type = btn.getAttribute('data-copy');
-        const text = type === 'manifest' ? JSON.stringify(MANIFEST_OBJ, null, 2) : SW_CODE;
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        try {
-          document.execCommand('copy');
-          showToast(`Copied ${type === 'manifest' ? 'manifest.json' : 'sw.js'}`);
-        } catch (err) {
-          showToast('Copy failed');
-        }
-        document.body.removeChild(ta);
       });
-    });
-
-    // 1-Click File Downloads for GitHub Pages repo
-    document.querySelectorAll('.dl-pwa-file').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const filename = btn.getAttribute('data-dl');
-        let content = '';
-        let mime = 'text/plain;charset=utf-8';
-
-        if (filename === 'index.html') {
-          content = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
-          mime = 'text/html;charset=utf-8';
-        } else if (filename === 'manifest.json') {
-          content = JSON.stringify(MANIFEST_OBJ, null, 2);
-          mime = 'application/json;charset=utf-8';
-        } else if (filename === 'sw.js') {
-          content = SW_CODE;
-          mime = 'application/javascript;charset=utf-8';
-        } else if (filename === 'icon.svg') {
-          content = SVG_ICON_CODE;
-          mime = 'image/svg+xml;charset=utf-8';
-        }
-
-        const blob = new Blob([content], { type: mime });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        showToast(`Downloaded ${filename}`);
-      });
-    });
+    }
 
     // Initial Render
     render();
